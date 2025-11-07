@@ -101,6 +101,88 @@ $teams = $db->fetchAll("SELECT * FROM team ORDER BY team_name");
             padding: 20px;
             margin-top: 20px;
         }
+        .nav-tabs {
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+        .nav-tabs .nav-link {
+            color: #6c757d;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-tabs .nav-link:hover {
+            color: #495057;
+            border-bottom-color: #dee2e6;
+        }
+        .nav-tabs .nav-link.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: none;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .leaderboard-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .leaderboard-rank {
+            font-size: 36px;
+            font-weight: 700;
+            width: 80px;
+            text-align: center;
+            margin-right: 20px;
+        }
+        .leaderboard-rank.gold {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .leaderboard-rank.silver {
+            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .leaderboard-rank.bronze {
+            background: linear-gradient(135deg, #CD7F32, #B87333);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .leaderboard-team {
+            flex: 1;
+        }
+        .leaderboard-team-name {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .leaderboard-scores {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .leaderboard-total {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            min-width: 100px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -201,7 +283,7 @@ $teams = $db->fetchAll("SELECT * FROM team ORDER BY team_name");
         <div x-show="selectedActivityId && !loading" class="content-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 x-text="'Scores for ' + getActivityName()"></h2>
-                <button class="btn btn-primary" @click="saveAllScores()">
+                <button class="btn btn-primary" @click="saveAllScores()" x-show="activeTab === 'entry'">
                     💾 Save All Scores
                 </button>
             </div>
@@ -212,104 +294,161 @@ $teams = $db->fetchAll("SELECT * FROM team ORDER BY team_name");
                 <button type="button" class="btn-close" @click="alert.show = false"></button>
             </div>
 
-            <!-- Scores Table -->
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Team</th>
-                            <th class="text-center">Creative (1-10)</th>
-                            <th class="text-center">Participation (1-10)</th>
-                            <th class="text-center">Bribe (1-10)</th>
-                            <th class="text-center">Total</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="team in teams" :key="team.id">
-                            <tr class="team-row">
-                                <td>
-                                    <strong x-text="team.team_name"></strong>
-                                </td>
-                                <td class="text-center">
-                                    <input 
-                                        type="number" 
-                                        class="form-control score-input d-inline-block" 
-                                        min="1" 
-                                        max="10"
-                                        x-model.number="team.creative_score"
-                                        @input="calculateTotal(team)"
-                                    >
-                                </td>
-                                <td class="text-center">
-                                    <input 
-                                        type="number" 
-                                        class="form-control score-input d-inline-block" 
-                                        min="1" 
-                                        max="10"
-                                        x-model.number="team.participation_score"
-                                        @input="calculateTotal(team)"
-                                    >
-                                </td>
-                                <td class="text-center">
-                                    <input 
-                                        type="number" 
-                                        class="form-control score-input d-inline-block" 
-                                        min="1" 
-                                        max="10"
-                                        x-model.number="team.bribe_score"
-                                        @input="calculateTotal(team)"
-                                    >
-                                </td>
-                                <td class="text-center">
-                                    <span class="score-badge" x-text="team.total_score || '-'"></span>
-                                </td>
-                                <td class="text-center">
-                                    <button 
-                                        class="btn btn-sm btn-primary btn-action"
-                                        @click="saveScore(team)"
-                                        x-show="team.hasChanges"
-                                    >
-                                        Save
-                                    </button>
-                                    <button 
-                                        class="btn btn-sm btn-danger btn-action"
-                                        @click="deleteScore(team)"
-                                        x-show="team.score_id && !team.hasChanges"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
+            <!-- Tabs -->
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link" 
+                       :class="{ 'active': activeTab === 'entry' }"
+                       @click="activeTab = 'entry'" 
+                       href="#" 
+                       role="tab">
+                        📝 Score Entry
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" 
+                       :class="{ 'active': activeTab === 'leaderboard' }"
+                       @click="activeTab = 'leaderboard'" 
+                       href="#" 
+                       role="tab">
+                        🏆 Leaderboard
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Score Entry Tab -->
+            <div x-show="activeTab === 'entry'">
+                <!-- Scores Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Team</th>
+                                <th class="text-center">Creative (1-10)</th>
+                                <th class="text-center">Participation (1-10)</th>
+                                <th class="text-center">Bribe (1-10)</th>
+                                <th class="text-center">Total</th>
+                                <th class="text-center">Actions</th>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <template x-for="team in teams" :key="team.id">
+                                <tr class="team-row">
+                                    <td>
+                                        <strong x-text="team.team_name"></strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <input 
+                                            type="number" 
+                                            class="form-control score-input d-inline-block" 
+                                            min="1" 
+                                            max="10"
+                                            x-model.number="team.creative_score"
+                                            @input="calculateTotal(team)"
+                                        >
+                                    </td>
+                                    <td class="text-center">
+                                        <input 
+                                            type="number" 
+                                            class="form-control score-input d-inline-block" 
+                                            min="1" 
+                                            max="10"
+                                            x-model.number="team.participation_score"
+                                            @input="calculateTotal(team)"
+                                        >
+                                    </td>
+                                    <td class="text-center">
+                                        <input 
+                                            type="number" 
+                                            class="form-control score-input d-inline-block" 
+                                            min="1" 
+                                            max="10"
+                                            x-model.number="team.bribe_score"
+                                            @input="calculateTotal(team)"
+                                        >
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="score-badge" x-text="team.total_score || '-'"></span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button 
+                                            class="btn btn-sm btn-primary btn-action"
+                                            @click="saveScore(team)"
+                                            x-show="team.hasChanges"
+                                        >
+                                            Save
+                                        </button>
+                                        <button 
+                                            class="btn btn-sm btn-danger btn-action"
+                                            @click="deleteScore(team)"
+                                            x-show="team.score_id && !team.hasChanges"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- New Team Form -->
+                <div class="new-team-form">
+                    <h5 class="mb-3">➕ Add New Team</h5>
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <label for="newTeamName" class="form-label">Team Name</label>
+                            <input 
+                                type="text" 
+                                id="newTeamName" 
+                                class="form-control" 
+                                x-model="newTeamName"
+                                placeholder="Enter team name"
+                                @keyup.enter="addNewTeam()"
+                            >
+                        </div>
+                        <div class="col-md-4">
+                            <button 
+                                class="btn btn-success w-100" 
+                                @click="addNewTeam()"
+                                :disabled="!newTeamName.trim()"
+                            >
+                                Add Team
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- New Team Form -->
-            <div class="new-team-form">
-                <h5 class="mb-3">➕ Add New Team</h5>
-                <div class="row align-items-end">
-                    <div class="col-md-8">
-                        <label for="newTeamName" class="form-label">Team Name</label>
-                        <input 
-                            type="text" 
-                            id="newTeamName" 
-                            class="form-control" 
-                            x-model="newTeamName"
-                            placeholder="Enter team name"
-                            @keyup.enter="addNewTeam()"
-                        >
-                    </div>
-                    <div class="col-md-4">
-                        <button 
-                            class="btn btn-success w-100" 
-                            @click="addNewTeam()"
-                            :disabled="!newTeamName.trim()"
-                        >
-                            Add Team
-                        </button>
-                    </div>
+            <!-- Leaderboard Tab -->
+            <div x-show="activeTab === 'leaderboard'">
+                <div x-show="sortedTeams.length === 0" class="text-center py-5 text-muted">
+                    <div class="display-1">📊</div>
+                    <h4>No Scores Yet</h4>
+                    <p>Switch to the Score Entry tab to add scores for teams.</p>
+                </div>
+                
+                <div x-show="sortedTeams.length > 0">
+                    <template x-for="(team, index) in sortedTeams" :key="team.id">
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-rank" 
+                                 :class="{ 'gold': index === 0, 'silver': index === 1, 'bronze': index === 2 }">
+                                <span x-show="index === 0">🥇</span>
+                                <span x-show="index === 1">🥈</span>
+                                <span x-show="index === 2">🥉</span>
+                                <span x-show="index > 2" x-text="index + 1"></span>
+                            </div>
+                            <div class="leaderboard-team">
+                                <div class="leaderboard-team-name" x-text="team.team_name"></div>
+                                <div class="leaderboard-scores">
+                                    Creative: <strong x-text="team.creative_score || 0"></strong> | 
+                                    Participation: <strong x-text="team.participation_score || 0"></strong> | 
+                                    Bribe: <strong x-text="team.bribe_score || 0"></strong>
+                                </div>
+                            </div>
+                            <div class="leaderboard-total" x-text="team.total_score || 0"></div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -352,11 +491,19 @@ $teams = $db->fetchAll("SELECT * FROM team ORDER BY team_name");
                 newTeamName: '',
                 newActivityName: '',
                 showNewActivityModal: false,
+                activeTab: 'entry',
                 sessionMinutes: <?php echo $remainingMinutes; ?>,
                 alert: {
                     show: false,
                     type: 'info',
                     message: ''
+                },
+
+                // Computed property for sorted teams
+                get sortedTeams() {
+                    return [...this.teams]
+                        .filter(team => team.total_score > 0)
+                        .sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
                 },
 
                 init() {
