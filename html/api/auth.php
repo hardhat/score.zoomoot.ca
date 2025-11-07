@@ -200,7 +200,7 @@ class Auth {
             'token' => $token,
             'expires_at' => $expiresAt,
             'expires_in_hours' => $expiresInHours,
-            'login_url' => self::getBaseUrl() . '/html/qr_login.php?token=' . $token
+            'login_url' => self::getBaseUrl() . 'qr_login.php?token=' . $token
         ];
     }
     
@@ -309,7 +309,7 @@ class Auth {
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $path = dirname($_SERVER['PHP_SELF'] ?? '');
-        $path = str_replace('/html/api', '', $path); // Remove api path if present
+        $path = str_replace('/api', '/', $path); // Remove api path if present
         return $protocol . '://' . $host . $path;
     }
 }
