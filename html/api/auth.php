@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../../env.php';
+require_once __DIR__ . '/db.php';
 
 class Auth {
     
@@ -171,6 +172,136 @@ class Auth {
             ]);
             exit;
         }
+    }
+    
+    /**
+     * Generate a secure QR code login token
+     */
+    public static function generateQRToken($expiresInHours = 24, $description = 'Activity Leader QR Code') {
+        // Create database table if it doesn't exist
+        self::initQRTokenTable();
+        
+        // Generate a secure random token
+        $token = bin2hex(random_bytes(32));
+        $expiresAt = time() + ($expiresInHours * 3600);
+        
+        // Store token in database
+        $db = Database::getInstance();
+        $result = $db->query(
+            "INSERT INTO qr_tokens (token, expires_at, description, created_at, used_count) VALUES (?, ?, ?, ?, 0)",
+            [1 => $token, 2 => $expiresAt, 3 => $description, 4 => time()]
+        );
+        
+        if (!$result) {
+            throw new Exception("Failed to create QR token");
+        }
+        
+        return [
+            'token' => $token,
+            'expires_at' => $expiresAt,
+            'expires_in_hours' => $expiresInHours,
+            'login_url' => self::getBaseUrl() . '/html/qr_login.php?token=' . $token
+        ];
+    }
+    
+    /**
+     * Validate and use a QR code token
+     */
+    public static function validateQRToken($token, $maxUses = 50) {
+        if (empty($token)) {
+            return false;
+        }
+        
+        $db = Database::getInstance();
+        
+        // Check if token exists and is valid
+        $result = $db->query(
+            "SELECT * FROM qr_tokens WHERE token = ? AND expires_at > ? LIMIT 1",
+            [1 => $token, 2 => time()]
+        );
+        
+        $tokenData = $result->fetchArray(SQLITE3_ASSOC);
+        
+        if (!$tokenData) {
+            return false;
+        }
+        
+        // Check if token has been used too many times
+        if ($tokenData['used_count'] >= $maxUses) {
+            return false;
+        }
+        
+        // Increment usage count
+        $db->query(
+            "UPDATE qr_tokens SET used_count = used_count + 1, last_used_at = ? WHERE token = ?",
+            [1 => time(), 2 => $token]
+        );
+        
+        return true;
+    }
+    
+    /**
+     * Clean up expired QR tokens
+     */
+    public static function cleanupExpiredTokens() {
+        $db = Database::getInstance();
+        $result = $db->query(
+            "DELETE FROM qr_tokens WHERE expires_at < ?",
+            [1 => time()]
+        );
+        
+        return $db->getConnection()->changes();
+    }
+    
+    /**
+     * Get all active QR tokens (for admin display)
+     */
+    public static function getActiveQRTokens() {
+        $db = Database::getInstance();
+        $result = $db->query(
+            "SELECT token, description, created_at, expires_at, used_count FROM qr_tokens WHERE expires_at > ? ORDER BY created_at DESC",
+            [1 => time()]
+        );
+        
+        $tokens = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $tokens[] = $row;
+        }
+        
+        return $tokens;
+    }
+    
+    /**
+     * Initialize QR token database table
+     */
+    private static function initQRTokenTable() {
+        $db = Database::getInstance();
+        $db->query("
+            CREATE TABLE IF NOT EXISTS qr_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT UNIQUE NOT NULL,
+                description TEXT,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL,
+                last_used_at INTEGER,
+                used_count INTEGER DEFAULT 0
+            )
+        ");
+        
+        // Create index for faster lookups
+        $db->query("CREATE INDEX IF NOT EXISTS idx_qr_tokens_token ON qr_tokens(token)");
+        $db->query("CREATE INDEX IF NOT EXISTS idx_qr_tokens_expires ON qr_tokens(expires_at)");
+    }
+    
+    /**
+     * Get the base URL of the application
+     */
+    private static function getBaseUrl() {
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $path = dirname($_SERVER['PHP_SELF'] ?? '');
+        $path = str_replace('/html/api', '', $path); // Remove api path if present
+        return $protocol . '://' . $host . $path;
     }
 }
 

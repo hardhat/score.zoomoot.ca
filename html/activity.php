@@ -141,6 +141,16 @@ $teams = $db->fetchAll("SELECT * FROM team ORDER BY team_name");
                 </svg>
                 Manage Activities
             </a>
+            <a href="qr_codes.php" class="btn btn-outline-primary">
+                <svg width="16" height="16" fill="currentColor" class="bi bi-qr-code" viewBox="0 0 16 16">
+                    <path d="M2 2h2v2H2V2Z"/>
+                    <path d="M6 0v6H0V0h6ZM5 1H1v4h4V1ZM4 12H2v2h2v-2Z"/>
+                    <path d="M6 10v6H0v-6h6Zm-1 1H1v4h4v-4ZM12 2h2v2h-2V2Z"/>
+                    <path d="M16 0v6h-6V0h6Zm-1 1h-4v4h4V1Zm-3 11h2v2h-2v-2Z"/>
+                    <path d="M16 10v6h-6v-6h6Zm-1 1h-4v4h4v-4ZM8 1V0h1v2H8V1ZM8 3v2h1V3H8Zm0 3v1h1V6H8Zm1 1v1H8v1h2V7H9Zm-2 2H6v1h2V9H7Zm1 1v1H7v1h2v-2H8Zm1-1h1v2H9V9Zm2-1V7h1V6h-1v1h-1v1h1Zm0 2h1v1h-1v-1Zm-1 1v1h1v-2h-1v1Zm-1 0h1v1H9v-1Zm2 0v2h-1v-1h-1v-1h2Z"/>
+                </svg>
+                QR Codes
+            </a>
         </div>
 
         <!-- Activity Selector -->
