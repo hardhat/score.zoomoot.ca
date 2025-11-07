@@ -212,6 +212,9 @@ class Auth {
             return false;
         }
         
+        // Ensure table exists
+        self::initQRTokenTable();
+        
         $db = Database::getInstance();
         
         // Check if token exists and is valid
@@ -244,6 +247,9 @@ class Auth {
      * Clean up expired QR tokens
      */
     public static function cleanupExpiredTokens() {
+        // Ensure table exists
+        self::initQRTokenTable();
+        
         $db = Database::getInstance();
         $result = $db->query(
             "DELETE FROM qr_tokens WHERE expires_at < ?",
@@ -257,6 +263,9 @@ class Auth {
      * Get all active QR tokens (for admin display)
      */
     public static function getActiveQRTokens() {
+        // Ensure table exists
+        self::initQRTokenTable();
+        
         $db = Database::getInstance();
         $result = $db->query(
             "SELECT token, description, created_at, expires_at, used_count FROM qr_tokens WHERE expires_at > ? ORDER BY created_at DESC",
