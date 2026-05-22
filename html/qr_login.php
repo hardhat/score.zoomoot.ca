@@ -25,9 +25,10 @@ if (Auth::isAuthenticated()) {
 
 // Validate token if provided
 if (!empty($token)) {
-    if (Auth::validateQRToken($token)) {
-        // Token is valid - authenticate user
-        Auth::setAuthCookie();
+    $tokenExpiresAt = Auth::validateQRToken($token);
+    if ($tokenExpiresAt !== false) {
+        // Token is valid - authenticate user with the QR token's expiry
+        Auth::setAuthCookie($tokenExpiresAt);
         $success = true;
         
         // Clean up expired tokens while we're here

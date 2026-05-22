@@ -9,6 +9,10 @@
 require_once __DIR__ . '/../../env.php';
 require_once __DIR__ . '/db.php';
 
+// Ensure PHP's server-side session GC respects our configured lifetime.
+// Must be set before session_start() — this runs at require_once time.
+ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
+
 class Auth {
     
     /**
@@ -30,14 +34,23 @@ class Auth {
     /**
      * Set authentication cookie
      */
-    public static function setAuthCookie() {
+    public static function setAuthCookie($expiresAt = null) {
+        // Determine effective session lifetime
+        $lifetime = SESSION_LIFETIME;
+        if ($expiresAt !== null) {
+            $remaining = $expiresAt - time();
+            if ($remaining > $lifetime) {
+                $lifetime = $remaining;
+            }
+        }
+
         // Start session if not already started
         if (session_status() === PHP_SESSION_NONE) {
             session_name(SESSION_NAME);
             
             // Set session cookie parameters before starting session
             session_set_cookie_params([
-                'lifetime' => SESSION_LIFETIME,
+                'lifetime' => $lifetime,
                 'path' => '/',
                 'domain' => '',
                 'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
@@ -54,6 +67,9 @@ class Auth {
         $_SESSION[SESSION_NAME . '_token'] = $token;
         $_SESSION['auth_time'] = time();
         $_SESSION['authenticated'] = true;
+        if ($expiresAt !== null) {
+            $_SESSION['session_expires_at'] = (int)$expiresAt;
+        }
         
         return $token;
     }
@@ -74,7 +90,12 @@ class Auth {
         }
         
         // Check if session has expired
-        if (isset($_SESSION['auth_time'])) {
+        if (isset($_SESSION['session_expires_at'])) {
+            if (time() > $_SESSION['session_expires_at']) {
+                self::clearAuth();
+                return false;
+            }
+        } elseif (isset($_SESSION['auth_time'])) {
             $elapsed = time() - $_SESSION['auth_time'];
             if ($elapsed > SESSION_LIFETIME) {
                 self::clearAuth();
@@ -139,6 +160,10 @@ class Auth {
             return 0;
         }
         
+        if (isset($_SESSION['session_expires_at'])) {
+            return max(0, $_SESSION['session_expires_at'] - time());
+        }
+
         if (isset($_SESSION['auth_time'])) {
             $elapsed = time() - $_SESSION['auth_time'];
             return max(0, SESSION_LIFETIME - $elapsed);
@@ -240,7 +265,7 @@ class Auth {
             [1 => time(), 2 => $token]
         );
         
-        return true;
+        return (int)$tokenData['expires_at'];
     }
     
     /**

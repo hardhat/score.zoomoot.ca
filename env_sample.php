@@ -16,7 +16,7 @@ define('PASSWORD_SALT', 'your-random-salt-string-here-change-this');
 
 // Session configuration
 define('SESSION_NAME', 'zoomoot_admin');
-define('SESSION_LIFETIME', 3600); // 1 hour in seconds
+define('SESSION_LIFETIME', 172800); // 48 hours in seconds
 
 // Application settings
 define('APP_NAME', 'Zoomoot Score Tracker');
